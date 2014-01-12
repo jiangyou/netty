@@ -3,13 +3,12 @@ package org.jiangyou.netty.channel;
 /**
  * <title>NioWorker</title>
  * <p></p>
- * Copyright © 2013 Phoenix New Media Limited All Rights Reserved.
+ *
  *
  * @author zhuwei
  *         1/12/14
  */
 
-import net.gleamynode.netty.channel.FailedChannelFuture;
 import net.gleamynode.netty.logging.Logger;
 
 import java.io.IOException;
@@ -22,7 +21,6 @@ import java.util.*;
 /**
  * <title>NioWorker</title>
  * <p></p>
- * Copyright © 2013 Phoenix New Media Limited All Rights Reserved.
  *
  * @author zhuwei
  *         1/12/14

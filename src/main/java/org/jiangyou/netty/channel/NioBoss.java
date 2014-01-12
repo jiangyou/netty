@@ -3,7 +3,7 @@ package org.jiangyou.netty.channel;
 /**
  * <title>NioBoss</title>
  * <p></p>
- * Copyright © 2013 Phoenix New Media Limited All Rights Reserved.
+ *
  *
  * @author zhuwei
  *         1/12/14
@@ -11,7 +11,6 @@ package org.jiangyou.netty.channel;
 
 
 import net.gleamynode.netty.logging.Logger;
-import org.jiangyou.netty.channel.NioWorker;
 
 
 import java.io.IOException;
@@ -22,7 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * <title>NioBoss</title>
  * <p></p>
- * Copyright © 2013 Phoenix New Media Limited All Rights Reserved.
  *
  * @author zhuwei
  *         1/12/14

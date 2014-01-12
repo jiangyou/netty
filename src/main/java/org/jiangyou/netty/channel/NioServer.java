@@ -3,7 +3,6 @@ package org.jiangyou.netty.channel;
 /**
  * <title>NioServer</title>
  * <p></p>
- * Copyright © 2013 Phoenix New Media Limited All Rights Reserved.
  *
  * @author zhuwei
  *         1/12/14
@@ -21,7 +20,6 @@ import java.util.concurrent.Executors;
 /**
  * <title>NioServer</title>
  * <p></p>
- * Copyright © 2013 Phoenix New Media Limited All Rights Reserved.
  *
  * @author zhuwei
  *         1/12/14
