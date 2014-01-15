@@ -1,4 +1,4 @@
-package org.jiangyou.netty.channel;
+package org.jiangyou.netty.demo;
 
 /**
  * <title>NioServer</title>
@@ -9,6 +9,7 @@ package org.jiangyou.netty.channel;
  */
 
 import net.gleamynode.netty.logging.Logger;
+import org.jiangyou.netty.channel.NioBoss;
 import org.jiangyou.netty.channel.NioWorker;
 
 import java.io.IOException;
