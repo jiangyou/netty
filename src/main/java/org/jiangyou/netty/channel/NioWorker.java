@@ -9,6 +9,7 @@ package org.jiangyou.netty.channel;
  *         1/12/14
  */
 
+import net.gleamynode.netty.channel.ChannelFutureListener;
 import net.gleamynode.netty.logging.Logger;
 
 import java.io.IOException;
@@ -16,7 +17,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.*;
+import java.util.Iterator;
+import java.util.Queue;
+import java.util.Set;
 
 /**
  * <title>NioWorker</title>
@@ -32,8 +35,8 @@ public class NioWorker implements Runnable {
     private volatile boolean stopped = false;
     private final int DEFAULT_BUFFER_SIZE = 1024;
     private Object lock = new Object();
-    Queue<ByteBuffer> queue = new LinkedList<ByteBuffer>();
     Thread thread;
+
     public NioWorker() {
         try {
             selector = Selector.open();
@@ -45,9 +48,10 @@ public class NioWorker implements Runnable {
     public void register(SocketChannel socketChannel) {
         try {
             socketChannel.configureBlocking(false);
-            synchronized (lock){
+            synchronized (lock) {
                 selector.wakeup();
-                socketChannel.register(selector, SelectionKey.OP_READ);
+                SelectionKey key = socketChannel.register(selector, SelectionKey.OP_READ);
+                key.attach(new Channel(socketChannel, this.selector));
             }
             LOGGER.info("NioWorker register Success,Wake up selector.");
 
@@ -77,13 +81,13 @@ public class NioWorker implements Runnable {
                 while (it.hasNext()) {
                     SelectionKey key = it.next();
                     it.remove();
-                    handel(key);
+                    handle(key);
                 }
             }
         }
     }
 
-    private void handel(SelectionKey key) {
+    private void handle(SelectionKey key) {
         if (key.isReadable()) {
             read(key);
         }
@@ -93,18 +97,48 @@ public class NioWorker implements Runnable {
     }
 
     private void write(SelectionKey key) {
+        Channel channel = (Channel) key.attachment();
+        Queue<ByteBuffer> queue = channel.getWriteQueue();
+        if (queue == null) {
+            return;
+        }
+        SocketChannel socketChannel = (SocketChannel) key.channel();
+        ByteBuffer buf = null;
+        try {
+            boolean enableWrite = false;
+            while ((buf = queue.peek()) != null) {
+                while (socketChannel.write(buf) > 0) {
+                }
+                if (buf.hasRemaining()) {
+                    enableWrite = true;
+                    break;
+                } else {
+                    queue.poll();
+                }
+            }
+            if (enableWrite) {
+                socketChannel.register(selector, SelectionKey.OP_WRITE);
+            } else {
+                if (key.isWritable()) {
+                    int interestOps = key.interestOps();
+                    key.interestOps(interestOps & ~SelectionKey.OP_WRITE);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+        }
 
     }
 
     private void read(SelectionKey key) {
         SocketChannel socketChannel = (SocketChannel) key.channel();
-        ByteBuffer readBuffer = ByteBuffer.allocate(DEFAULT_BUFFER_SIZE);
+        ByteBuffer readBuffer = ByteBuffer.allocateDirect(DEFAULT_BUFFER_SIZE);
         int readBytes = 0;
         int n = 0;
         boolean failure = true;
         try {
             while ((n = socketChannel.read(readBuffer)) > 0) {
-                readBytes+= n;
+                readBytes += n;
                 if (!readBuffer.hasRemaining()) {
                     break;
                 }
@@ -116,7 +150,8 @@ public class NioWorker implements Runnable {
 
         if (readBytes > 0) {
             String text = new String(readBuffer.array(), 0, readBytes);
-            System.out.println("Receive Text:"+text);
+            System.out.println("Receive Text:" + text);
+            Queue<ByteBuffer> queue = (Queue<ByteBuffer>) key.attachment();
         }
         if (n < 0 || failure) {
             try {
