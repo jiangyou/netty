@@ -25,6 +25,7 @@ public class Channel {
     private SocketChannel socketChannel;
     private Selector selector;
     private Queue<ByteBuffer> writeQueue = new LinkedList<ByteBuffer>();
+    private Object writeLock = new Object();
 
 
     public Channel(SocketChannel socketChannel, Selector selector) {
@@ -35,9 +36,11 @@ public class Channel {
 
 
     public void write(ByteBuffer byteBuffer) throws IOException {
-        writeQueue.offer(byteBuffer);
+        synchronized (writeLock){
+            writeQueue.offer(byteBuffer);
+        }
         try {
-            socketChannel.register(selector, SelectionKey.OP_WRITE);
+            socketChannel.register(selector, SelectionKey.OP_WRITE|SelectionKey.OP_READ,this);
         } catch (ClosedChannelException e) {
             LOGGER.error("Register OP_Write error", e);
             socketChannel.close();

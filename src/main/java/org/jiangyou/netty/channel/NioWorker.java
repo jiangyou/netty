@@ -50,8 +50,7 @@ public class NioWorker implements Runnable {
             socketChannel.configureBlocking(false);
             synchronized (lock) {
                 selector.wakeup();
-                SelectionKey key = socketChannel.register(selector, SelectionKey.OP_READ);
-                key.attach(new Channel(socketChannel, this.selector));
+                socketChannel.register(selector, SelectionKey.OP_READ, new Channel(socketChannel, this.selector));
             }
             LOGGER.info("NioWorker register Success,Wake up selector.");
 
@@ -98,13 +97,22 @@ public class NioWorker implements Runnable {
 
     private void write(SelectionKey key) {
         Channel channel = (Channel) key.attachment();
-        Queue<ByteBuffer> queue = channel.getWriteQueue();
-        if (queue == null) {
-            return;
+        if (channel == null) {
+            try {
+                key.channel().close();
+            } catch (IOException e) {
+                LOGGER.error("Close channel failed");
+            }
+            throw new IllegalStateException("Channel not attach");
         }
-        SocketChannel socketChannel = (SocketChannel) key.channel();
-        ByteBuffer buf = null;
         try {
+            Queue<ByteBuffer> queue = channel.getWriteQueue();
+            if (queue == null) {
+                return;
+            }
+            SocketChannel socketChannel = channel.getSocketChannel();
+            ByteBuffer buf = null;
+
             boolean enableWrite = false;
             while ((buf = queue.peek()) != null) {
                 while (socketChannel.write(buf) > 0) {
@@ -122,6 +130,7 @@ public class NioWorker implements Runnable {
                 if (key.isWritable()) {
                     int interestOps = key.interestOps();
                     key.interestOps(interestOps & ~SelectionKey.OP_WRITE);
+                    System.out.println(key.isReadable());
                 }
             }
         } catch (Exception e) {
@@ -131,8 +140,9 @@ public class NioWorker implements Runnable {
     }
 
     private void read(SelectionKey key) {
-        SocketChannel socketChannel = (SocketChannel) key.channel();
-        ByteBuffer readBuffer = ByteBuffer.allocateDirect(DEFAULT_BUFFER_SIZE);
+        Channel channel = (Channel) key.attachment();
+        SocketChannel socketChannel = channel.getSocketChannel();
+        ByteBuffer readBuffer = ByteBuffer.allocate(DEFAULT_BUFFER_SIZE);
         int readBytes = 0;
         int n = 0;
         boolean failure = true;
@@ -151,7 +161,11 @@ public class NioWorker implements Runnable {
         if (readBytes > 0) {
             String text = new String(readBuffer.array(), 0, readBytes);
             System.out.println("Receive Text:" + text);
-            Queue<ByteBuffer> queue = (Queue<ByteBuffer>) key.attachment();
+           try {
+                channel.write(ByteBuffer.wrap(text.getBytes()));
+            } catch (Exception e) {
+                LOGGER.error("write error");
+            }
         }
         if (n < 0 || failure) {
             try {
